@@ -59,7 +59,7 @@ public:
 protected:
   /// Computes the local power-Law relaxation parameter
   T computeOmegaPL ( Cell<T,DESCRIPTOR>& cell, T omega0,
-           T rho, T pi[util::TensorVal<DESCRIPTOR >::n] );
+           T rho, T pi[util::TensorVal<DESCRIPTOR >::n]);
 
 protected:
   T _m;
@@ -87,6 +87,106 @@ public:
   /// Constructor
   /// m,n...parameter in the power law model
   PowerLawForcedBGKdynamics(T omega, Momenta<T,DESCRIPTOR>& momenta, T m=0.1, T n=.5, T nuMin=T(2.9686e-3), T nuMax=T(3.1667));
+
+  /// Collision step
+  void collide(Cell<T,DESCRIPTOR>& cell, LatticeStatistics<T>& statistics) override;
+};
+}
+
+#endif
+
+
+
+
+
+/*  This file is part of the OpenLB library
+ *namespace olb {
+ *  Copyright (C) 2012, 2015 Mathias J. Krause, Vojtech Cvrcek, Davide Dapelo
+ *  E-mail contact: info@openlb.net
+ *  The most recent release of OpenLB can be downloaded at
+ *  <http://www.openlb.net/>
+ *
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without ev#ifndef POWER_LAW_BGK_DYNAMICS_H
+#define POWER_LAW_BGK_DYNAMICS_HGNU General Public
+ *  License along with this program; if not, write to the Free
+ *  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ *  Boston, MA  02110-1301, USA.
+*/
+
+
+#ifndef CARREAU_BGK_DYNAMICS_H
+#define CARREAU_BGK_DYNAMICS_H
+
+namespace olb {
+
+
+/// Implementation of Power-Law Dynamics
+template<typename T, typename DESCRIPTOR>
+class CarreauDynamics {
+public:
+
+T _mu_ifinity;
+T _mu_zero;
+T _n_carr;
+T _dx;
+T _dt;
+
+  /// Constructor
+  CarreauDynamics(T mu_ifinity, T mu_zero, T n_carr, T dx, T dt):
+  _mu_ifinity(mu_ifinity),
+  _mu_zero(mu_zero),
+  _n_carr(n_carr),
+  _dx(dx),
+  _dt(dt)
+  {};
+  
+  /// Set _omegaMin and _omegaMax
+  void setViscoLimits(T nuMin, T nuMax);
+  /// Set m parameter
+  /// Return minimum viscosity
+  T getNuMin();
+  /// Return maximum viscosity
+  T getNuMax();
+
+protected:
+  /// Computes the local Carreau relaxation parameter
+  T computeOmegaCarr ( Cell<T,DESCRIPTOR>& cell, T omega0,
+           T rho, T pi[util::TensorVal<DESCRIPTOR >::n], T _mu_ifinity,T _mu_zero, T _n_carr, T dx, T dt );
+
+protected:
+  T _m;
+  T _n;
+  T _omegaMin;
+  T _omegaMax;
+};
+
+/// Implementation of the BGK collision step
+template<typename T, typename DESCRIPTOR>
+class CarreauBGKdynamics : public BGKdynamics<T,DESCRIPTOR>, public CarreauDynamics<T,DESCRIPTOR> {
+public:
+  /// Constructor
+  /// m,n...parameter in the power law model
+
+  
+  CarreauBGKdynamics(T omega, Momenta<T,DESCRIPTOR>& momenta,T mu_infinity,T n_carr,T mu_zero, T dx, T dt);
+
+  /// Collision step
+  void collide(Cell<T,DESCRIPTOR>& cell, LatticeStatistics<T>& statistics) override;
+};
+
+/// Implementation of the forced BGK collision step
+template<typename T, typename DESCRIPTOR>
+class CarreauForcedBGKdynamics : public ForcedBGKdynamics<T,DESCRIPTOR>, public CarreauDynamics<T,DESCRIPTOR> {
+public:
+  /// Constructor
+  /// m,n...parameter in the Carreau model
+  CarreauForcedBGKdynamics(T omega, Momenta<T,DESCRIPTOR>& momenta);
 
   /// Collision step
   void collide(Cell<T,DESCRIPTOR>& cell, LatticeStatistics<T>& statistics) override;

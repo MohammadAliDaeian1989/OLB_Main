@@ -161,7 +161,7 @@ public:
     T physDensity,
     T charPhysPressure = 0)
     : PowerLawUnitConverter<T, DESCRIPTOR>( (charPhysLength/resolution),
-                                         (latticeRelaxationTime - 0.5) / descriptors::invCs2<T,DESCRIPTOR>() * pow((charPhysLength/resolution),2) / ( ( charPhysLength * charPhysVelocity * pow( charPhysVelocity / ( 2 * charPhysLength ), 1 - powerLawIndex ) / Re ) * pow( charPhysVelocity / (2 * charPhysLength ), powerLawIndex - 1 ) ),
+                                         (latticeRelaxationTime - 0.5) / descriptors::invCs2<T,DESCRIPTOR>() * pow((charPhysLength/resolution),2) / ( ( charPhysLength * charPhysVelocity * 	                            	   pow( charPhysVelocity / ( 2 * charPhysLength ), 1 - powerLawIndex ) / Re ) * pow( charPhysVelocity / (2 * charPhysLength ), powerLawIndex - 1 ) ),
                                          charPhysLength, charPhysVelocity,
                                          charPhysLength * charPhysVelocity * pow( charPhysVelocity / ( 2 * charPhysLength ), 1 - powerLawIndex ) / Re, powerLawIndex, physDensity, charPhysPressure )
   {
@@ -169,6 +169,43 @@ public:
 
 };
 
+
+
+
+//========================================================================================Carreau Non-Newtonian Model===============================================================================
+
+
+template <typename T, typename DESCRIPTOR>
+class CarreauUnitConverter : public UnitConverter<T, DESCRIPTOR> {
+public:
+  /** Documentation of constructor:
+    *  \param physDeltaX              spacing between two lattice cells in __m__
+    *  \param physDeltaT              time step in __s__
+    *  \param charPhysLength          reference/characteristic length of simulation geometry in __m__
+    *  \param charPhysVelocity        maximal or highest expected velocity during simulation in __m / s__
+    *  \param physConsistencyCoeff    physical power-law consistency coefficient in __m^2 s^(n-2)__
+    *  \param powerLawIndex           Power-law index
+    *  \param physDensity             physical density in __kg / m^3__
+    *  \param charPhysPressure        reference/characteristic physical pressure in Pa = kg / m s^2
+    */
+  constexpr CarreauUnitConverter( int resolution, T latticeRelaxationTime, T charPhysLength,
+                                   T Re, T Carreau_index, T mu_zero, 
+                                   T physDensity,T charPhysPressure = 0)
+    : UnitConverter<T, DESCRIPTOR>( charPhysLength/resolution, (latticeRelaxationTime - 0.5) / descriptors::invCs2<T,DESCRIPTOR>()*(charPhysLength/resolution)*(charPhysLength/resolution)/(mu_zero 					    /physDensity),charPhysLength, Re*(mu_zero/physDensity)/(charPhysLength),
+                                   mu_zero/physDensity,
+                                   physDensity, charPhysPressure )
+
+ {
+ 
+  };
+
+};
+
 }  // namespace olb
+
+
+
+
+
 
 #endif

@@ -109,6 +109,8 @@ T PowerLawDynamics<T,DESCRIPTOR>::computeOmegaPL( Cell<T,DESCRIPTOR>& cell, T om
   if (newOmega<_omegaMin) {
     newOmega = _omegaMin;
   }
+  
+    std::cout << nuNew << "NewOmega " << newOmega;
 
   //std::cout << nuNew << " " << (1./newOmega -0.5) / descriptors::invCs2<T,DESCRIPTOR>() << "        "
             //<< omega0 << " " << _omegaMin << " " << _omegaMax << " "  << newOmega << std::endl; // <---
@@ -148,7 +150,6 @@ void PowerLawBGKdynamics<T,DESCRIPTOR>::collide (
   statistics.incrementStats(rho, uSqr);
 }
 
-
 ////////////////////// Class ForcedPowerLawBGKdynamics //////////////////////////
 
 /** \param vs2_ speed of sound
@@ -173,6 +174,7 @@ void PowerLawForcedBGKdynamics<T,DESCRIPTOR>::collide (
 
   // Computation of the power-law omega.
   // An external is used in place of BGKdynamics::_omega to keep generality and flexibility.
+  
   T oldOmega = cell.template getField<descriptors::OMEGA>();
   T newOmega = this->computeOmegaPL(cell, oldOmega, rho, pi);
 
@@ -188,3 +190,134 @@ void PowerLawForcedBGKdynamics<T,DESCRIPTOR>::collide (
 }
 
 #endif
+
+
+
+/*  This file is part of the OpenLB library
+ *
+ *  Copyright (C) 2012, 2015 Mathias J. Krause, Vojtech Cvrcekt, Davide Dapelo
+ *  E-mail contact: info@openlb.net
+ *  The most recent release of OpenLB can be downloaded at
+ *  <http://www.openlb.net/>
+ *
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public
+ *  License along with this program; if not, write to the Free
+ *  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ *  Boston, MA  02110-1301, USA.
+*/
+
+
+namespace olb {
+
+////////////////////// Class PowerLawDynamics //////////////////////////
+
+
+
+template<typename T, typename DESCRIPTOR>
+T CarreauDynamics<T,DESCRIPTOR>::computeOmegaCarr( Cell<T,DESCRIPTOR>& cell, T omega0,
+           T rho, T pi[util::TensorVal<DESCRIPTOR >::n],T mu_ifinity,T mu_zero,T n_carr, T dx, T dt)           
+{
+
+  T a_carr=0.644;
+  T Lanndha_carr=0.11;
+
+  T pre2 = pow(descriptors::invCs2<T,DESCRIPTOR>()/2.* omega0/rho,2.); // strain rate tensor prefactor
+  //T gamma = sqrt(2.*pre2*PiNeqNormSqr(cell)); // shear rate
+  T gamma = sqrt(2.*pre2*lbHelpers<T,DESCRIPTOR>::computePiNeqNormSqr(cell)); // shear rate
+
+  // T nuNew = _m*pow(gamma,_n-1.); //nu for non-Newtonian fluid
+  //T nuNew = (numin_carr-numix_carr)*(1+pow((Landha*gamma)^(a_carr))^((n_carr-1)/(a_carr)); //nu for non-Newtonian fluid
+
+  T nuNew1 = ((mu_zero-mu_ifinity)*pow((1+pow(gamma*Lanndha_carr,a_carr)),((n_carr-1)/(a_carr)))+mu_ifinity);
+  T nuNew =nuNew1/1055.0* dt/dx/dx;
+    
+  T newOmega = 1./(nuNew*descriptors::invCs2<T,DESCRIPTOR>() + 0.5);
+
+  //std::cout<< "-------->"  << nuNew1<<"-------->"<< nuNew << "--------> " << newOmega << "-----> " << Lanndha_carr<< "      ";
+  
+  return newOmega;
+  //return omega0;
+}
+
+
+////////////////////// Class PowerLawBGKdynamics //////////////////////////
+
+/** \param vs2_ speed of sound
+ *  \param momenta_ a Momenta object to know how to compute velocity momenta
+ *  \param momenta_ a Momenta object to know how to compute velocity momenta
+ */
+template<typename T, typename DESCRIPTOR>
+CarreauBGKdynamics<T,DESCRIPTOR>::CarreauBGKdynamics (
+  T omega, Momenta<T,DESCRIPTOR>& momenta, T mu_ifinity, T mu_zero, T n_carr,T dx, T dt)
+  : BGKdynamics<T,DESCRIPTOR>(omega,momenta),
+    CarreauDynamics<T,DESCRIPTOR>(mu_ifinity,mu_zero,n_carr,dx,dt)
+{ }
+
+template<typename T, typename DESCRIPTOR>
+void CarreauBGKdynamics<T,DESCRIPTOR>::collide (
+  Cell<T,DESCRIPTOR>& cell,
+  LatticeStatistics<T>& statistics )
+{
+  T rho, u[DESCRIPTOR::d], pi[util::TensorVal<DESCRIPTOR >::n];
+  this->_momenta.computeAllMomenta(cell, rho, u, pi);
+
+  // Computation of the power-law omega.
+  // An external is used in place of BGKdynamics::_omega to keep generality and flexibility.
+  const auto oldOmega = cell.template getField<descriptors::OMEGA>();
+  const auto newOmega = this->computeOmegaCarr(cell, oldOmega, rho, pi,this->_mu_ifinity,this->_mu_zero,this->_n_carr,this->_dx,this->_dt);
+ //std::cout << "OldOmega=" << oldOmega << "NewOmega=" << newOmega ;
+ abort;
+  const T uSqr = lbHelpers<T,DESCRIPTOR>::bgkCollision(cell, rho, u, newOmega);
+  cell.template setField<descriptors::OMEGA>(newOmega);
+  statistics.incrementStats(rho, uSqr); 
+}
+
+
+////////////////////// Class ForcedPowerLawBGKdynamics //////////////////////////
+
+/** \param vs2_ speed of sound
+ *  \param momenta_ a Momenta object to know how to compute velocity momenta
+ *  \param momenta_ a Momenta object to know how to compute velocity momenta
+ */
+template<typename T, typename DESCRIPTOR>
+CarreauForcedBGKdynamics<T,DESCRIPTOR>::CarreauForcedBGKdynamics (
+  T omega, Momenta<T,DESCRIPTOR>& momenta)
+  : ForcedBGKdynamics<T,DESCRIPTOR>(omega, momenta)
+{ }
+
+template<typename T, typename DESCRIPTOR>
+void CarreauForcedBGKdynamics<T,DESCRIPTOR>::collide (
+  Cell<T,DESCRIPTOR>& cell,
+  LatticeStatistics<T>& statistics )
+{
+  T rho, pi[util::TensorVal<DESCRIPTOR >::n];
+  FieldD<T,DESCRIPTOR,descriptors::VELOCITY> u;
+  this->_momenta.computeAllMomenta(cell, rho, u.data(), pi);
+
+  // Computation of the power-law omega.
+  // An external is used in place of BGKdynamics::_omega to keep generality and flexibility.
+  T oldOmega = cell.template getField<descriptors::OMEGA>();
+  T newOmega = this->computeOmegaCarr(cell, oldOmega, rho, pi,this->_mu_zero,this->_n_carr,this->_dx,this->_dt);
+
+  auto force = cell.template getFieldPointer<descriptors::FORCE>();
+  u += 0.5 * force;
+
+  T uSqr = lbHelpers<T,DESCRIPTOR>::bgkCollision(cell, rho, u.data(), this->getOmega());
+  lbHelpers<T,DESCRIPTOR>::addExternalForce(cell, u.data(), newOmega, rho);
+  cell.template setField<descriptors::OMEGA>(newOmega);
+  statistics.incrementStats(rho, uSqr);
+}
+
+}
+
+
